@@ -352,8 +352,14 @@ def page_tag():
     tags = db.get_person_tags(project["id"])
     cluster_counts = db.get_cluster_face_count(project["id"])
 
-    # Sort clusters by face count descending
-    sorted_clusters = sorted(cluster_counts.items(), key=lambda x: x[1], reverse=True)
+    # Sort: renamed first → face count desc → cluster ID asc
+    def _cluster_sort_key_tag(item):
+        cid, cnt = item
+        tag = tags.get(cid, {}).get("tag", f"Person {cid + 1}")
+        is_default = tag == f"Person {cid + 1}"
+        return (1 if is_default else 0, -cnt, cid)
+
+    sorted_clusters = sorted(cluster_counts.items(), key=_cluster_sort_key_tag)
 
     st.markdown(f"### {len(sorted_clusters)} people detected")
 
@@ -452,8 +458,15 @@ def page_browse():
 
     # Filter controls
     st.markdown("### 🎯 Filter by Person")
+    def _cluster_sort_key_browse(cid):
+        tag = tags[cid].get("tag", f"Person {cid + 1}")
+        is_default = tag == f"Person {cid + 1}"
+        cnt = cluster_counts.get(cid, 0)
+        return (1 if is_default else 0, -cnt, cid)
+
     tag_options = {}
-    for cid, info in tags.items():
+    for cid in sorted(tags.keys(), key=_cluster_sort_key_browse):
+        info = tags[cid]
         label = f"{info['tag']} ({cluster_counts.get(cid, 0)} appearances)"
         tag_options[label] = cid
 
@@ -466,19 +479,41 @@ def page_browse():
     selected_clusters = [tag_options[l] for l in selected_labels]
 
     # Filter mode
-    if len(selected_clusters) > 1:
+    if len(selected_clusters) >= 1:
         filter_mode = st.radio(
             "Filter mode",
-            ["ANY (photos with any selected person)", "ALL (photos with all selected people)"],
+            [
+                "ANY — photos with any selected person",
+                "ALL — photos with all selected people",
+                "ONLY — photos with exclusively the selected people",
+            ],
             horizontal=True
         )
     else:
-        filter_mode = "ANY (photos with any selected person)"
+        filter_mode = "ANY — photos with any selected person"
 
     # Get filtered images
+    selected_set = set(selected_clusters)
     if selected_clusters:
-        if "ALL" in filter_mode:
-            # Get images that contain ALL selected people
+        if "ONLY" in filter_mode:
+            # Start with images that have ALL selected people…
+            image_sets = []
+            for cid in selected_clusters:
+                imgs = db.get_images_by_cluster(project["id"], cid)
+                image_sets.append(set(img["id"] for img in imgs))
+            common_ids = set.intersection(*image_sets) if image_sets else set()
+            all_project_images = {img["id"]: img for img in db.get_all_images(project["id"])}
+            # …then remove any image that also contains faces from other clusters
+            filtered_images = []
+            for iid in common_ids:
+                if iid not in all_project_images:
+                    continue
+                img_faces = db.get_faces_for_image(iid)
+                clusters_in_image = {f["cluster_id"] for f in img_faces if f["cluster_id"] is not None}
+                if clusters_in_image <= selected_set:  # subset: no extra people
+                    filtered_images.append(all_project_images[iid])
+        elif "ALL" in filter_mode:
+            # Images that contain ALL selected people (other people allowed)
             image_sets = []
             for cid in selected_clusters:
                 imgs = db.get_images_by_cluster(project["id"], cid)

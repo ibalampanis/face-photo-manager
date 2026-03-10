@@ -58,7 +58,7 @@ class FaceEngine:
             return None
 
         h, w = img.shape[:2]
-        x1, y1, x2, y2 = bbox
+        x1, y1, x2, y2 = int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])
         fw, fh = x2 - x1, y2 - y1
         pad_w, pad_h = int(fw * padding), int(fh * padding)
 
