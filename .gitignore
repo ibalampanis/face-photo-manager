@@ -1,0 +1,41 @@
+# Virtual environment
+venv/
+.venv/
+env/
+ENV/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+
+# Data & models (large files)
+data/
+*.db
+*.sqlite3
+
+# InsightFace model cache (auto-downloaded at runtime)
+# ~/.insightface is in home dir, not needed here
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Env files
+.env
+*.env
