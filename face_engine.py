@@ -8,7 +8,22 @@ from sklearn.cluster import DBSCAN
 import faiss
 import logging
 
+import onnxruntime
+
 logger = logging.getLogger(__name__)
+
+
+def _best_providers() -> list:
+    """Return ONNX execution providers in priority order: CUDA > CoreML (MPS) > CPU."""
+    available = onnxruntime.get_available_providers()
+    preferred = [
+        "CUDAExecutionProvider",      # NVIDIA GPU
+        "CoreMLExecutionProvider",    # Apple Silicon (MPS / Neural Engine)
+        "CPUExecutionProvider",       # fallback
+    ]
+    providers = [p for p in preferred if p in available]
+    logger.info("ONNX providers selected: %s", providers)
+    return providers
 
 
 class FaceEngine:
@@ -25,7 +40,7 @@ class FaceEngine:
         if self._app is None:
             self._app = FaceAnalysis(
                 name="buffalo_l",
-                providers=["CoreMLExecutionProvider", "CPUExecutionProvider"]
+                providers=_best_providers()
             )
             self._app.prepare(ctx_id=0, det_size=self.det_size, det_thresh=self.det_thresh)
         return self._app
