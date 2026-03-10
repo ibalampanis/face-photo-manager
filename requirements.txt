@@ -1,8 +1,8 @@
 streamlit
 insightface
-onnxruntime
+onnxruntime>=1.18.0  # NumPy 2 compatible; provides CoreMLExecutionProvider on Apple Silicon
 opencv-python-headless
-numpy
+numpy>=2.0
 scikit-learn
 faiss-cpu
 Pillow
